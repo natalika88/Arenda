@@ -336,7 +336,7 @@ img { max-width: 100%; display: block; }
   position: absolute;
   inset: 0;
   background:
-    url('https://images.unsplash.com/photo-1449158743715-0a90ebb6d2d8?w=1800&q=80') center/cover no-repeat;
+    url('hero-bg.jpg') center/cover no-repeat;
   transform: scale(1.08);
   transition: transform 8s linear;
 }
