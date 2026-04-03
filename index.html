@@ -120,15 +120,31 @@
       </div>
 
       <!-- Дом внутри -->
-      <div class="about-house-block">
-        <img src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=800&q=80" alt="Интерьер дома" class="about-house-img">
-        <div class="about-house-text">
+      <div class="about-house-interior">
+        <div class="about-house-text" style="text-align:center; margin-bottom: 40px;">
           <h3 class="section-subtitle">Внутри — тепло, свет и продуманные детали</h3>
-          <p class="section-text">
+          <p class="section-text" style="margin-inline:auto;">
             Просторная гостиная, удобные спальни и всё, что нужно для отдыха:
             кухня, посуда, чистое постельное бельё, техника.
             Здесь комфортно провести как выходные, так и несколько дней подряд.
           </p>
+        </div>
+        <div class="interior-gallery">
+          <div class="gallery-main">
+            <img src="1.1x3H3ra5.jpg" alt="Гостиная с камином" id="galleryMain">
+            <button class="gallery-arrow gallery-prev" aria-label="Назад">&#8249;</button>
+            <button class="gallery-arrow gallery-next" aria-label="Вперёд">&#8250;</button>
+          </div>
+          <div class="gallery-thumbs">
+            <button class="gallery-thumb active" data-index="0"><img src="1.1x3H3ra5.jpg" alt="Гостиная с камином"></button>
+            <button class="gallery-thumb" data-index="1"><img src="1.6uQDqba5.jpg" alt="Спальня"></button>
+            <button class="gallery-thumb" data-index="2"><img src="1.al_gLLa5xrbW.jpg" alt="Комната"></button>
+            <button class="gallery-thumb" data-index="3"><img src="1.faRtira50U.jpg" alt="Кухня"></button>
+            <button class="gallery-thumb" data-index="4"><img src="1.AXDQ3ra5rZnmaS-U3rpQZ4V_r59ufy-P5nKvm2JrqZs.webp" alt="Интерьер"></button>
+            <button class="gallery-thumb" data-index="5"><img src="1.gNVivra5LDxUCa4xbrjkxDcfLjrcH64qVBIuPtALKD4.webp" alt="Интерьер"></button>
+            <button class="gallery-thumb" data-index="6"><img src="1.lWoxeba5OYMHzruOF2_ze2TYO4WP2LuVB9U7gYPMPYE.webp" alt="Интерьер"></button>
+            <button class="gallery-thumb" data-index="7"><img src="1.y65LS7a5Z0d9_OVKUSDTqCnqZUH16uVRfedlRfn-Y0U.webp" alt="Интерьер"></button>
+          </div>
         </div>
       </div>
 
@@ -159,13 +175,16 @@
       <!-- Карта -->
       <div style="margin-top: 80px;">
         <h3 class="section-subtitle" style="text-align:center;">Удобное расположение</h3>
-        <p class="section-text" style="text-align:center; margin-inline:auto; margin-bottom: 24px;">
+        <p class="section-text" style="text-align:center; margin-inline:auto; margin-bottom: 8px;">
           Дом находится в курортном районе Санкт-Петербурга —
           легко добраться на машине или такси.
         </p>
+        <p class="section-text" style="text-align:center; margin-inline:auto; margin-bottom: 24px; font-weight: 500; color: var(--color-text);">
+          📍 Санкт-Петербург, Курортный р-н, пос. Белоостров, исторический район Дюны, Западная ул., 6
+        </p>
         <div class="map-wrapper">
           <iframe
-            src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d127804.8846!2d29.9!3d60.15!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x469631d02f19a8e1%3A0x4c6f27ddccf2a0e5!2z0JrRg9GA0L7RgNGC0L3Ri9C5INGA0LDQudC-0L0!5e0!3m2!1sru!2sru!4v1680000000000!5m2!1sru!2sru"
+            src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2000!2d30.0048!3d60.1352!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x4696375d7c1e3c55%3A0x0!2z0JfQsNC_0LDQtNC90LDRjyDRg9C7LiA2LCDQsdC10LvQvtC-0YHRgtGA0L7Qsg!5e0!3m2!1sru!2sru!4v1680000000000!5m2!1sru!2sru"
             allowfullscreen
             loading="lazy"
             referrerpolicy="no-referrer-when-downgrade"
@@ -346,7 +365,8 @@
   <!-- ========== Footer ========== -->
   <footer class="footer">
     <div class="container">
-      <p>&copy; 2026 ДомУЛеса — аренда загородных домов рядом с Санкт-Петербургом</p>
+      <p style="margin-bottom: 6px;">&copy; 2026 ДомУЛеса — аренда загородных домов рядом с Санкт-Петербургом</p>
+      <p>📍 Санкт-Петербург, Курортный р-н, пос. Белоостров, ист. район Дюны, Западная ул., 6</p>
     </div>
   </footer>
 
@@ -375,6 +395,30 @@
         btn.setAttribute('aria-expanded', !isActive);
       });
     });
+
+    // Interior gallery
+    (() => {
+      const mainImg = document.getElementById('galleryMain');
+      const thumbs = document.querySelectorAll('.gallery-thumb');
+      const sources = Array.from(thumbs).map(t => t.querySelector('img').src);
+      let current = 0;
+
+      function goTo(idx) {
+        current = (idx + sources.length) % sources.length;
+        mainImg.style.opacity = 0;
+        setTimeout(() => {
+          mainImg.src = sources[current];
+          mainImg.style.opacity = 1;
+        }, 200);
+        thumbs.forEach(t => t.classList.remove('active'));
+        thumbs[current].classList.add('active');
+        thumbs[current].scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+      }
+
+      thumbs.forEach(t => t.addEventListener('click', () => goTo(+t.dataset.index)));
+      document.querySelector('.gallery-prev').addEventListener('click', () => goTo(current - 1));
+      document.querySelector('.gallery-next').addEventListener('click', () => goTo(current + 1));
+    })();
   </script>
 
 </body>
