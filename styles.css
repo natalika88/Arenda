@@ -1028,16 +1028,15 @@ img { max-width: 100%; display: block; }
 .cta-bg {
   position: absolute;
   inset: 0;
-  background:
-    url('https://images.unsplash.com/photo-1510798831971-661eb04b3739?w=1400&q=80') center/cover no-repeat;
+  background: url('cta-bottom-bg.jpg') center/cover no-repeat;
 }
 
 .cta-overlay {
   position: absolute;
   inset: 0;
   background: linear-gradient(135deg,
-    rgba(44,68,44,.88) 0%,
-    rgba(42,32,24,.82) 100%
+    rgba(44,68,44,.72) 0%,
+    rgba(42,32,24,.66) 100%
   );
 }
 
