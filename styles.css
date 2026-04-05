@@ -252,21 +252,8 @@ img { max-width: 100%; display: block; }
 .header .container {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-}
-
-.logo {
-  font-family: var(--f-brand);
-  font-size: 1.6rem;
-  font-weight: 400;
-  color: #fff;
-  transition: color .4s var(--ease-out);
-  letter-spacing: .12em;
-  text-transform: uppercase;
-}
-
-.header.scrolled .logo {
-  color: var(--c-bark);
+  justify-content: flex-end;
+  gap: 16px;
 }
 
 .nav-links {
