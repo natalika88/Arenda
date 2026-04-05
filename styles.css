@@ -367,13 +367,14 @@ img { max-width: 100%; display: block; }
 }
 
 .hero-brand {
-  font-family: var(--f-brand);
-  font-size: clamp(2rem, 4.5vw, 3rem);
-  font-weight: 400;
-  letter-spacing: .2em;
-  text-transform: uppercase;
+  font-family: var(--f-display);
+  font-size: clamp(2.4rem, 5.5vw, 3.6rem);
+  font-weight: 500;
+  font-style: italic;
+  letter-spacing: -.01em;
+  line-height: 1.15;
   color: #fff;
-  margin-bottom: 16px;
+  margin-bottom: 14px;
   opacity: 0;
   animation: heroFadeUp .9s var(--ease-out) .3s forwards;
 }
@@ -1154,7 +1155,7 @@ img { max-width: 100%; display: block; }
   .section { padding: 72px 0; }
   .hero { min-height: 100svh; }
   .hero-features { gap: 20px; }
-  .hero-brand { font-size: clamp(1.6rem, 6vw, 2.2rem); letter-spacing: .14em; }
+  .hero-brand { font-size: clamp(1.9rem, 7vw, 2.6rem); }
   .hero-title { font-size: clamp(1.3rem, 4vw, 1.8rem); }
 
   .houses-grid { grid-template-columns: 1fr; }
