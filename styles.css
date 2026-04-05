@@ -599,9 +599,10 @@ img { max-width: 100%; display: block; }
   align-items: center;
   margin-bottom: 100px;
 }
+.about-house-block > * { min-width: 0; }
 .about-house-block:last-child { margin-bottom: 0; }
 .about-house-block.reverse { direction: rtl; }
-.about-house-block.reverse > * { direction: ltr; }
+.about-house-block.reverse > * { direction: ltr; min-width: 0; }
 
 .about-house-img-wrap {
   position: relative;
@@ -641,9 +642,12 @@ img { max-width: 100%; display: block; }
   margin-bottom: 16px;
 }
 
-/* ===== Interior gallery ===== */
-.interior-gallery {
+/* ===== Shared gallery styles ===== */
+.interior-gallery,
+.exterior-gallery {
   width: 100%;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .gallery-main {
@@ -693,7 +697,7 @@ img { max-width: 100%; display: block; }
 .gallery-thumbs {
   display: flex;
   gap: 8px;
-  margin-top: 12px;
+  margin-top: 10px;
   overflow-x: auto;
   padding: 4px 0 8px;
   scrollbar-width: none;
@@ -723,28 +727,6 @@ img { max-width: 100%; display: block; }
   width: 100%;
   height: 100%;
   object-fit: cover;
-}
-
-/* ===== Exterior gallery in 2-col block ===== */
-.exterior-gallery {
-  width: 100%;
-}
-.exterior-gallery .gallery-main {
-  aspect-ratio: 4 / 3;
-  border-radius: var(--r-xl);
-  overflow: hidden;
-  box-shadow: var(--shadow-lift);
-  position: relative;
-  background: var(--c-parchment);
-}
-.exterior-gallery .gallery-main img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  transition: opacity .5s var(--ease-out);
-}
-.exterior-gallery .gallery-thumbs {
-  margin-top: 10px;
 }
 
 /* ===== Map ===== */
@@ -1166,11 +1148,19 @@ img { max-width: 100%; display: block; }
   .map-wrapper iframe { height: 260px; }
   .map-block { margin-top: 72px; }
 
-  .gallery-thumb { width: 64px; height: 48px; }
-  .gallery-arrow { width: 38px; height: 38px; font-size: 1.2rem; }
+  .gallery-thumb { width: 56px; height: 42px; }
+  .gallery-arrow { width: 36px; height: 36px; font-size: 1.1rem; }
 
-  .about-house-interior { margin-bottom: 72px; }
-  .about-house-block { margin-bottom: 72px; }
+  .about-house-block { margin-bottom: 72px; gap: 28px; }
+
+  .interior-gallery,
+  .exterior-gallery {
+    max-width: 100%;
+  }
+
+  .gallery-thumbs {
+    max-width: 100%;
+  }
 
   .section-tag { font-size: .68rem; letter-spacing: 2.5px; }
   .house-highlights { gap: 32px; }
