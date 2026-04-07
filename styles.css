@@ -413,12 +413,13 @@ img { max-width: 100%; display: block; }
 
 .hero-tag-bottom {
   position: absolute;
-  left: 50%;
+  left: 0;
+  right: 0;
   bottom: 88px;
   margin-bottom: 0;
-  transform: translateX(-50%);
+  transform: none;
   z-index: 2;
-  white-space: nowrap;
+  text-align: center;
 }
 
 .hero-subtitle {
@@ -1364,8 +1365,9 @@ img { max-width: 100%; display: block; }
   .hero-subtitle { font-size: 1rem; line-height: 1.75; max-width: 92%; margin-bottom: 34px; }
   .hero-tag-bottom {
     position: absolute;
-    left: 50%;
-    transform: translateX(-50%);
+    left: 0;
+    right: 0;
+    transform: none;
     bottom: 30px;
   }
   .hero-scroll { bottom: 86px; }
@@ -1412,8 +1414,9 @@ img { max-width: 100%; display: block; }
   .hero-tag { letter-spacing: 3px; margin-bottom: 24px; }
   .hero-tag-bottom {
     position: absolute;
-    left: 50%;
-    transform: translateX(-50%);
+    left: 0;
+    right: 0;
+    transform: none;
     bottom: 20px;
     margin-bottom: 0;
     font-size: .64rem;
