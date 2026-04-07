@@ -1362,7 +1362,13 @@ img { max-width: 100%; display: block; }
   .hero-brand { font-size: clamp(2.35rem, 9vw, 3rem); }
   .hero-title { font-size: clamp(2.7rem, 10vw, 4rem); }
   .hero-subtitle { font-size: 1rem; line-height: 1.75; max-width: 92%; margin-bottom: 34px; }
-  .hero-tag-bottom { bottom: 76px; }
+  .hero-tag-bottom {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: 30px;
+  }
+  .hero-scroll { bottom: 86px; }
   .section-title { font-size: clamp(1.9rem, 6.4vw, 2.4rem); margin-bottom: 18px; }
   .section-text { font-size: 1rem; line-height: 1.75; }
   .header-brand {
@@ -1404,7 +1410,16 @@ img { max-width: 100%; display: block; }
   .hero-title { font-size: clamp(2.2rem, 11vw, 3.2rem); }
   .hero-subtitle { font-size: .96rem; line-height: 1.68; margin-bottom: 28px; }
   .hero-tag { letter-spacing: 3px; margin-bottom: 24px; }
-  .hero-tag-bottom { bottom: 68px; margin-bottom: 0; }
+  .hero-tag-bottom {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: 20px;
+    margin-bottom: 0;
+    font-size: .64rem;
+    letter-spacing: 2.4px;
+  }
+  .hero-scroll { bottom: 74px; }
   .pricing-info { gap: 28px; }
   .booking-card { padding: 18px; }
   .booking-calendar-wrap iframe { height: 470px; }
