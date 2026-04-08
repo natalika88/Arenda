@@ -29,7 +29,7 @@
 
         <input type="text" id="guestName" aria-label="Ваше имя" placeholder="Ваше имя" required>
         <input type="tel" id="guestPhone" aria-label="Телефон" placeholder="Телефон" required>
-        <input type="email" id="guestEmail" aria-label="Электронная почта" placeholder="Электронная почта (необязательно)">
+        <input type="email" id="guestEmail" aria-label="Электронная почта" placeholder="Электронная почта">
         <input type="date" id="checkin" aria-label="Дата заезда">
         <input type="date" id="checkout" aria-label="Дата выезда">
 
@@ -64,13 +64,15 @@
 
   <script>
     function calculatePrice() {
+      const priceEl = document.getElementById('price');
       const checkinValue = document.getElementById('checkin').value;
       const checkoutValue = document.getElementById('checkout').value;
       const checkin = new Date(checkinValue);
       const checkout = new Date(checkoutValue);
 
       if (!checkinValue || !checkoutValue || checkout <= checkin) {
-        document.getElementById('price').innerText = 'Выберите корректные даты';
+        priceEl.innerText = 'Выберите корректные даты';
+        priceEl.classList.add('booking-price-small');
         return;
       }
 
@@ -85,8 +87,9 @@
         cursor.setDate(cursor.getDate() + 1);
       }
 
-      document.getElementById('price').innerText =
+      priceEl.innerText =
         `${nights} ночи — ${total.toLocaleString('ru-RU')} ₽`;
+      priceEl.classList.remove('booking-price-small');
     }
 
     document.getElementById('checkin').addEventListener('change', calculatePrice);

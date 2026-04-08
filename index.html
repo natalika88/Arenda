@@ -173,9 +173,6 @@
           <p class="address-line">
             Санкт-Петербург, Курортный район, посёлок Белоостров, исторический район Дюны, Западная улица, 6
           </p>
-          <p class="address-line">
-            Телефон: <a href="tel:+79312218867">+7 931 221-88-67</a>
-          </p>
         </div>
         <div class="map-wrapper">
           <iframe
@@ -204,14 +201,14 @@
           <div class="pricing-split">
             <div class="pricing-line">
               <div class="pricing-label">Будни</div>
-              <div class="pricing-value">от 5 000 ₽</div>
+              <div class="pricing-value">от 5 000 ₽/сут</div>
             </div>
             <div class="pricing-line">
               <div class="pricing-label">Выходные</div>
-              <div class="pricing-value">от 7 000 ₽</div>
+              <div class="pricing-value">от 7 000 ₽/сут</div>
             </div>
           </div>
-          <div class="pricing-unit">за сутки</div>
+          <div class="pricing-unit"></div>
         </div>
       </div>
 
@@ -275,7 +272,9 @@
       <span class="section-tag reveal">отзывы</span>
       <h2 class="section-title reveal">Что говорят гости</h2>
 
-      <div class="reviews-grid">
+      <div class="reviews-carousel">
+        <button type="button" class="reviews-nav reviews-prev" aria-label="Предыдущие отзывы">&#8249;</button>
+        <div class="reviews-grid" id="reviewsGrid">
         <div class="review-card reveal reveal-delay-1">
           <div class="review-quote">&ldquo;</div>
           <p class="review-text">Очень уютно и спокойно. Всё чисто, как на фото. Приехали отдохнуть — и действительно получилось.</p>
@@ -291,6 +290,13 @@
           <p class="review-text">Понравилось, что всё просто и понятно — без сюрпризов. Природа потрясающая.</p>
           <div class="review-stars">★ ★ ★ ★ ★</div>
         </div>
+        <div class="review-card reveal reveal-delay-4">
+          <div class="review-quote">&ldquo;</div>
+          <p class="review-text">Все супер!</p>
+          <div class="review-stars">★ ★ ★ ★ ★</div>
+        </div>
+        </div>
+        <button type="button" class="reviews-nav reviews-next" aria-label="Следующие отзывы">&#8250;</button>
       </div>
     </div>
   </section>
@@ -454,6 +460,41 @@
       '[data-gallery="exterior"].gallery-prev',
       '[data-gallery="exterior"].gallery-next'
     );
+
+    // Reviews: horizontal scroll (wheel + arrows)
+    (function () {
+      const el = document.getElementById('reviewsGrid');
+      if (!el) return;
+      const root = el.closest('.reviews-carousel');
+      const gap = 20;
+      function stepSize() {
+        const card = el.querySelector('.review-card');
+        return (card ? card.getBoundingClientRect().width : 300) + gap;
+      }
+      el.addEventListener('wheel', function (e) {
+        if (e.ctrlKey) return;
+        const maxScroll = el.scrollWidth - el.clientWidth;
+        if (maxScroll <= 0) return;
+        const dy = e.deltaY;
+        const dx = e.deltaX;
+        const useY = Math.abs(dy) >= Math.abs(dx);
+        const delta = useY ? dy : dx;
+        if (!delta) return;
+        const atStart = el.scrollLeft <= 1;
+        const atEnd = el.scrollLeft >= maxScroll - 1;
+        if ((delta < 0 && atStart) || (delta > 0 && atEnd)) return;
+        e.preventDefault();
+        el.scrollLeft += delta;
+      }, { passive: false });
+      const prev = root && root.querySelector('.reviews-prev');
+      const next = root && root.querySelector('.reviews-next');
+      if (prev) prev.addEventListener('click', function () {
+        el.scrollBy({ left: -stepSize(), behavior: 'smooth' });
+      });
+      if (next) next.addEventListener('click', function () {
+        el.scrollBy({ left: stepSize(), behavior: 'smooth' });
+      });
+    })();
 
   </script>
   <a class="floating-contact" href="https://t.me/NataliaAI288" target="_blank" rel="noopener noreferrer">
