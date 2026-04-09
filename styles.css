@@ -1207,6 +1207,19 @@ img { max-width: 100%; display: block; }
   box-shadow: var(--shadow-soft);
   margin-bottom: 12px;
   background: #fff;
+  position: relative;
+}
+
+.booking-calendar-wrap::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 210px;
+  height: 26px;
+  background: #fff;
+  z-index: 2;
+  pointer-events: none;
 }
 
 .booking-calendar-wrap iframe {
