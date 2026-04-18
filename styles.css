@@ -1181,6 +1181,27 @@ img { max-width: 100%; display: block; }
   border: 1px solid rgba(0,0,0,.04);
 }
 
+/* Старые версии скрипта добавляли #acalOfflineHint — скрываем везде (в т.ч. при кэше на телефоне) */
+#acalOfflineHint {
+  display: none !important;
+  visibility: hidden !important;
+  height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  position: absolute !important;
+  clip: rect(0, 0, 0, 0) !important;
+}
+
+.booking-input-label {
+  display: block;
+  text-align: left;
+  font-size: .82rem;
+  font-weight: 500;
+  color: var(--c-bark-soft);
+  margin: 2px 0 6px;
+}
+
 .booking-card input {
   width: 100%;
   padding: 12px 14px;

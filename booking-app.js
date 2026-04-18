@@ -67,24 +67,6 @@ function buildFallbackMonthDays(year, monthZeroBased) {
   return out;
 }
 
-function setOfflineHint(visible) {
-  const wrap = document.querySelector("#availabilityCalendar .acal-legend");
-  if (!wrap) return;
-  let el = document.getElementById("acalOfflineHint");
-  if (!el) {
-    el = document.createElement("p");
-    el.id = "acalOfflineHint";
-    el.className = "booking-small";
-    el.style.marginTop = "10px";
-    el.style.textAlign = "center";
-    wrap.after(el);
-  }
-  el.textContent = visible
-    ? "Открыта локальная копия без сервера. Запустите npm start и откройте страницу по адресу http://localhost:3000/booking.html — тогда отобразятся занятость и бронь."
-    : "";
-  el.style.display = visible ? "block" : "none";
-}
-
 async function loadMonth() {
   const monthHuman = acalViewMonth + 1;
   calendarOffline = false;
@@ -106,6 +88,9 @@ async function loadMonth() {
     monthDaysMap = new Map(monthDays.map((d) => [d.date, d]));
     calendarOffline = true;
   }
+
+  const staleHint = document.getElementById("acalOfflineHint");
+  if (staleHint) staleHint.remove();
 }
 
 function renderCalendar() {
@@ -190,7 +175,7 @@ function calculatePriceLocal() {
     total += isWeekend ? 7000 : 5000;
     cursor.setDate(cursor.getDate() + 1);
   }
-  priceEl.textContent = `${nights} ночи — ${total.toLocaleString("ru-RU")} ₽ (оценка без сервера)`;
+  priceEl.textContent = `${nights} ночи — ${total.toLocaleString("ru-RU")} ₽`;
 }
 
 async function calculatePrice() {
@@ -238,11 +223,13 @@ async function onDatesChange() {
     await loadMonth();
   }
   renderCalendar();
-  setOfflineHint(calendarOffline);
   await calculatePrice();
 }
 
 async function initCalendar() {
+  const staleHint = document.getElementById("acalOfflineHint");
+  if (staleHint) staleHint.remove();
+
   acalWeekdays.innerHTML = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
     .map((t) => `<span>${t}</span>`)
     .join("");
@@ -259,7 +246,6 @@ async function initCalendar() {
 
   await loadMonth();
   renderCalendar();
-  setOfflineHint(calendarOffline);
 }
 
 acalPrev.addEventListener("click", async () => {
@@ -271,7 +257,6 @@ acalPrev.addEventListener("click", async () => {
   }
   await loadMonth();
   renderCalendar();
-  setOfflineHint(calendarOffline);
 });
 
 acalNext.addEventListener("click", async () => {
@@ -283,7 +268,6 @@ acalNext.addEventListener("click", async () => {
   }
   await loadMonth();
   renderCalendar();
-  setOfflineHint(calendarOffline);
 });
 
 checkinInput.addEventListener("change", onDatesChange);
