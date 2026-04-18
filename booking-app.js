@@ -17,6 +17,8 @@ let acalViewYear = new Date().getFullYear();
 let acalViewMonth = new Date().getMonth();
 let monthDays = [];
 let monthDaysMap = new Map();
+/** true если нет сервера (file://) или /api/calendar недоступен */
+let calendarOffline = false;
 
 function toISO(date) {
   const y = date.getFullYear();
@@ -42,13 +44,68 @@ function todayISO() {
   return toISO(new Date());
 }
 
+function daysInMonth(year, monthZeroBased) {
+  return new Date(year, monthZeroBased + 1, 0).getDate();
+}
+
+/** Данные месяца без сервера: все дни свободны, цена будни/выходные как на сайте */
+function buildFallbackMonthDays(year, monthZeroBased) {
+  const count = daysInMonth(year, monthZeroBased);
+  const out = [];
+  for (let d = 1; d <= count; d += 1) {
+    const date = new Date(year, monthZeroBased, d);
+    const iso = toISO(date);
+    const wd = date.getDay();
+    const isWeekend = wd === 0 || wd === 6;
+    out.push({
+      date: iso,
+      status: "free",
+      price_per_night: isWeekend ? 7000 : 5000,
+      guest_limit: 6
+    });
+  }
+  return out;
+}
+
+function setOfflineHint(visible) {
+  const wrap = document.querySelector("#availabilityCalendar .acal-legend");
+  if (!wrap) return;
+  let el = document.getElementById("acalOfflineHint");
+  if (!el) {
+    el = document.createElement("p");
+    el.id = "acalOfflineHint";
+    el.className = "booking-small";
+    el.style.marginTop = "10px";
+    el.style.textAlign = "center";
+    wrap.after(el);
+  }
+  el.textContent = visible
+    ? "Открыта локальная копия без сервера. Запустите npm start и откройте страницу по адресу http://localhost:3000/booking.html — тогда отобразятся занятость и бронь."
+    : "";
+  el.style.display = visible ? "block" : "none";
+}
+
 async function loadMonth() {
   const monthHuman = acalViewMonth + 1;
-  const res = await fetch(`/api/calendar?year=${acalViewYear}&month=${monthHuman}`);
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || "Ошибка загрузки календаря.");
-  monthDays = data.days || [];
-  monthDaysMap = new Map(monthDays.map((d) => [d.date, d]));
+  calendarOffline = false;
+  try {
+    const res = await fetch(`/api/calendar?year=${acalViewYear}&month=${monthHuman}`);
+    const text = await res.text();
+    let data = {};
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = {};
+    }
+    if (!res.ok) throw new Error(data.error || "Ошибка загрузки календаря.");
+    monthDays = data.days || [];
+    if (!monthDays.length) throw new Error("empty");
+    monthDaysMap = new Map(monthDays.map((d) => [d.date, d]));
+  } catch {
+    monthDays = buildFallbackMonthDays(acalViewYear, acalViewMonth);
+    monthDaysMap = new Map(monthDays.map((d) => [d.date, d]));
+    calendarOffline = true;
+  }
 }
 
 function renderCalendar() {
@@ -57,7 +114,8 @@ function renderCalendar() {
 
   const first = new Date(acalViewYear, acalViewMonth, 1);
   const startPad = (first.getDay() + 6) % 7;
-  const total = Math.ceil((startPad + monthDays.length) / 7) * 7;
+  const dayCount = daysInMonth(acalViewYear, acalViewMonth);
+  const total = Math.ceil((startPad + dayCount) / 7) * 7;
   const ci = parseISO(checkinInput.value);
   const co = parseISO(checkoutInput.value);
   const lastNight = co ? addDays(co, -1) : null;
@@ -65,7 +123,7 @@ function renderCalendar() {
   for (let i = 0; i < total; i += 1) {
     const cell = document.createElement("div");
     cell.className = "acal-cell";
-    if (i < startPad || i >= startPad + monthDays.length) {
+    if (i < startPad || i >= startPad + dayCount) {
       cell.classList.add("acal-cell--empty");
       acalGrid.appendChild(cell);
       continue;
@@ -114,6 +172,27 @@ function onDayClick(iso) {
   onDatesChange();
 }
 
+function calculatePriceLocal() {
+  const checkinValue = checkinInput.value;
+  const checkoutValue = checkoutInput.value;
+  const checkin = parseISO(checkinValue);
+  const checkout = parseISO(checkoutValue);
+  if (!checkin || !checkout || checkout <= checkin) {
+    priceEl.textContent = "Выберите корректные даты";
+    return;
+  }
+  const nights = (checkout - checkin) / (1000 * 60 * 60 * 24);
+  let total = 0;
+  const cursor = new Date(checkin);
+  for (let i = 0; i < nights; i += 1) {
+    const day = cursor.getDay();
+    const isWeekend = day === 0 || day === 6;
+    total += isWeekend ? 7000 : 5000;
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  priceEl.textContent = `${nights} ночи — ${total.toLocaleString("ru-RU")} ₽ (оценка без сервера)`;
+}
+
 async function calculatePrice() {
   const checkin = checkinInput.value;
   const checkout = checkoutInput.value;
@@ -122,19 +201,33 @@ async function calculatePrice() {
     priceEl.textContent = "Выберите даты";
     return;
   }
-  const res = await fetch(
-    `/api/price?checkin=${checkin}&checkout=${checkout}&guests=${guests}`
-  );
-  const data = await res.json();
-  if (!res.ok) {
-    priceEl.textContent = data.error || "Ошибка расчета";
+  if (calendarOffline) {
+    calculatePriceLocal();
     return;
   }
-  if (!data.available) {
-    priceEl.textContent = `Занято (${data.blockedDate})`;
-    return;
+  try {
+    const res = await fetch(
+      `/api/price?checkin=${checkin}&checkout=${checkout}&guests=${guests}`
+    );
+    const text = await res.text();
+    let data = {};
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = {};
+    }
+    if (!res.ok) {
+      calculatePriceLocal();
+      return;
+    }
+    if (!data.available) {
+      priceEl.textContent = `Занято (${data.blockedDate})`;
+      return;
+    }
+    priceEl.textContent = `${data.nights} ночи — ${data.total.toLocaleString("ru-RU")} ₽`;
+  } catch {
+    calculatePriceLocal();
   }
-  priceEl.textContent = `${data.nights} ночи — ${data.total.toLocaleString("ru-RU")} ₽`;
 }
 
 async function onDatesChange() {
@@ -145,6 +238,7 @@ async function onDatesChange() {
     await loadMonth();
   }
   renderCalendar();
+  setOfflineHint(calendarOffline);
   await calculatePrice();
 }
 
@@ -153,8 +247,19 @@ async function initCalendar() {
     .map((t) => `<span>${t}</span>`)
     .join("");
 
+  const ci = parseISO(checkinInput.value);
+  if (ci) {
+    acalViewYear = ci.getFullYear();
+    acalViewMonth = ci.getMonth();
+  } else {
+    const now = new Date();
+    acalViewYear = now.getFullYear();
+    acalViewMonth = now.getMonth();
+  }
+
   await loadMonth();
   renderCalendar();
+  setOfflineHint(calendarOffline);
 }
 
 acalPrev.addEventListener("click", async () => {
@@ -166,6 +271,7 @@ acalPrev.addEventListener("click", async () => {
   }
   await loadMonth();
   renderCalendar();
+  setOfflineHint(calendarOffline);
 });
 
 acalNext.addEventListener("click", async () => {
@@ -177,6 +283,7 @@ acalNext.addEventListener("click", async () => {
   }
   await loadMonth();
   renderCalendar();
+  setOfflineHint(calendarOffline);
 });
 
 checkinInput.addEventListener("change", onDatesChange);
@@ -198,6 +305,11 @@ window.submitForm = async function submitForm() {
   }
   if (!consent) {
     alert("Подтвердите согласие на обработку персональных данных.");
+    return;
+  }
+
+  if (calendarOffline) {
+    alert("Сервер не запущен — бронь через сайт недоступна. Нажмите кнопку с Telegram или запустите npm start.");
     return;
   }
 

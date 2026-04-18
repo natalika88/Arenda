@@ -1387,6 +1387,76 @@ img { max-width: 100%; display: block; }
   background: var(--c-moss);
 }
 
+/* Админка: панель цен и ячейки с суммой */
+.admin-prices-panel {
+  margin-bottom: 14px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--c-divider);
+  text-align: left;
+}
+
+.admin-prices-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  align-items: flex-end;
+}
+
+.admin-price-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: .78rem;
+  color: var(--c-stone);
+}
+
+.admin-price-field input {
+  width: 120px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--c-divider);
+  font-family: var(--f-body);
+  font-size: .9rem;
+}
+
+.admin-price-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: .8rem;
+  color: var(--c-stone);
+  margin-bottom: 2px;
+}
+
+.admin-price-check input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--c-moss);
+}
+
+.acal-day--admin {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1px;
+  line-height: 1.05;
+  padding: 4px 2px;
+  max-height: 52px;
+  min-height: 44px;
+}
+
+.admin-cal-daynum {
+  font-size: .84rem;
+  font-weight: 600;
+}
+
+.admin-cal-price {
+  font-size: .58rem;
+  font-weight: 500;
+  color: var(--c-stone);
+  letter-spacing: .01em;
+}
+
 .booking-note {
   margin: 0 0 14px;
   font-size: .78rem;

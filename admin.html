@@ -11,15 +11,26 @@
     <div class="container" style="max-width: 900px;">
       <span class="section-tag">админка</span>
       <h1 class="section-title">Управление календарём</h1>
-      <p class="section-text">Отмечайте занятость, цену и лимит гостей по датам.</p>
+      <p class="section-text">Отмечайте занятость, цену и лимит гостей по датам. Доступ защищён логином и паролем из .env (запросит браузер при открытии страницы).</p>
 
       <div class="booking-card" style="max-width: 900px;">
         <div style="display:flex; gap:8px; margin-bottom: 12px; flex-wrap: wrap;">
-          <input id="adminToken" type="password" placeholder="ADMIN_TOKEN" aria-label="Токен админа">
           <input id="adminMonth" type="month" aria-label="Месяц">
           <button id="loadMonth" class="btn btn-primary" type="button">Загрузить</button>
         </div>
         <div id="adminStatus" class="booking-small" style="margin-bottom: 10px;"></div>
+
+        <div class="admin-prices-panel">
+          <div class="booking-price-label">Редактировать цены на месяц</div>
+          <p class="booking-small" style="margin: 6px 0 10px;">Будни — Пн–Пт, выходные — Сб–Вс. По умолчанию цены меняются только у <strong>свободных</strong> дней.</p>
+          <div class="admin-prices-row">
+            <label class="admin-price-field">Будни, ₽ <input type="number" id="priceWeekday" min="0" step="100" value="5000" aria-label="Цена будни"></label>
+            <label class="admin-price-field">Выходные, ₽ <input type="number" id="priceWeekend" min="0" step="100" value="7000" aria-label="Цена выходные"></label>
+            <label class="admin-price-check"><input type="checkbox" id="priceIncludeBusy"> включая занятые дни</label>
+            <button type="button" id="applyMonthPrices" class="btn btn-warm">Применить цены</button>
+          </div>
+        </div>
+
         <div class="booking-calendar-wrap">
           <div class="acal">
             <div class="acal-weekdays" id="adminWeekdays"></div>

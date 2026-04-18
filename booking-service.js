@@ -265,11 +265,64 @@ async function upsertDay({ date, status, pricePerNight, guestLimit, note = "" })
   );
 }
 
+async function updateDayPrice(date, pricePerNight) {
+  const parsed = parseISO(date);
+  if (!parsed) throw new Error("Некорректная дата.");
+
+  await ensureDay(date);
+  const price = Number(pricePerNight);
+  if (Number.isNaN(price) || price < 0) throw new Error("Некорректная цена.");
+
+  await run("UPDATE daily_rates SET price_per_night = ? WHERE date = ?", [price, date]);
+
+  return get(
+    "SELECT date, status, price_per_night, guest_limit, note FROM daily_rates WHERE date = ?",
+    [date]
+  );
+}
+
+async function updateMonthPrices({ year, month, weekdayPrice, weekendPrice, includeBusy = false }) {
+  const y = Number(year);
+  const m = Number(month);
+  if (Number.isNaN(y) || Number.isNaN(m) || m < 1 || m > 12) {
+    throw new Error("Некорректный месяц.");
+  }
+
+  const wp = Number(weekdayPrice);
+  const wend = Number(weekendPrice);
+  if (Number.isNaN(wp) || wp < 0) throw new Error("Некорректная цена будней.");
+  if (Number.isNaN(wend) || wend < 0) throw new Error("Некорректная цена выходных.");
+
+  const days = await getMonth(y, m);
+  let updated = 0;
+
+  await run("BEGIN TRANSACTION");
+  try {
+    for (const row of days) {
+      if (!includeBusy && row.status === "busy") continue;
+      const d = parseISO(row.date);
+      const day = d.getDay();
+      const isWeekend = day === 0 || day === 6;
+      const nextPrice = isWeekend ? wend : wp;
+      await run("UPDATE daily_rates SET price_per_night = ? WHERE date = ?", [nextPrice, row.date]);
+      updated += 1;
+    }
+    await run("COMMIT");
+  } catch (error) {
+    await run("ROLLBACK");
+    throw error;
+  }
+
+  return { year: y, month: m, updated };
+}
+
 module.exports = {
   initDb,
   checkAvailability,
   calculatePrice,
   createBooking,
   getMonth,
-  upsertDay
+  upsertDay,
+  updateDayPrice,
+  updateMonthPrices
 };

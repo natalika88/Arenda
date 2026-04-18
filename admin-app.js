@@ -1,9 +1,26 @@
 const adminWeekdays = document.getElementById("adminWeekdays");
 const adminGrid = document.getElementById("adminGrid");
 const adminMonth = document.getElementById("adminMonth");
-const adminToken = document.getElementById("adminToken");
 const adminStatus = document.getElementById("adminStatus");
 const loadMonthBtn = document.getElementById("loadMonth");
+
+const fetchAdmin = (url, options = {}) =>
+  fetch(url, {
+    ...options,
+    credentials: "include",
+    headers: {
+      ...(options.headers || {})
+    }
+  });
+
+async function readAdminResponse(res) {
+  const text = await res.text();
+  try {
+    return JSON.parse(text);
+  } catch {
+    return { error: text || res.statusText };
+  }
+}
 
 const labels = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
 adminWeekdays.innerHTML = labels.map((t) => `<span>${t}</span>`).join("");
@@ -19,16 +36,9 @@ function toISO(date) {
 }
 
 async function loadMonth() {
-  const token = adminToken.value.trim();
-  if (!token) {
-    adminStatus.textContent = "Введите ADMIN_TOKEN.";
-    return;
-  }
   const [year, month] = adminMonth.value.split("-").map(Number);
-  const res = await fetch(`/api/admin/calendar?year=${year}&month=${month}`, {
-    headers: { "x-admin-token": token }
-  });
-  const data = await res.json();
+  const res = await fetchAdmin(`/api/admin/calendar?year=${year}&month=${month}`);
+  const data = await readAdminResponse(res);
   if (!res.ok) {
     adminStatus.textContent = data.error || "Ошибка загрузки.";
     return;
@@ -61,9 +71,11 @@ function renderGrid(days, year, month) {
 
     const button = document.createElement("button");
     button.type = "button";
-    button.className = `acal-day ${row.status === "busy" ? "acal-day--busy" : ""}`;
-    button.textContent = String(dayNumber);
-    button.title = `${iso} | ${row.status} | ${row.price_per_night} ₽ | ${row.guest_limit} гостей`;
+    button.className = `acal-day acal-day--admin ${row.status === "busy" ? "acal-day--busy" : ""}`;
+    button.innerHTML =
+      `<span class="admin-cal-daynum">${dayNumber}</span>` +
+      `<span class="admin-cal-price">${Number(row.price_per_night).toLocaleString("ru-RU")} ₽</span>`;
+    button.title = `${iso} | ${row.status} | ${row.guest_limit} гостей — клик: правка`;
     button.addEventListener("click", () => editDay(row));
 
     cell.appendChild(button);
@@ -72,7 +84,36 @@ function renderGrid(days, year, month) {
 }
 
 async function editDay(day) {
-  const token = adminToken.value.trim();
+  const mode = window.prompt(
+    `${day.date}\n1 — полная правка (статус, цена, гости)\n2 — только цена`,
+    "2"
+  );
+  if (mode === null || mode === "") return;
+
+  if (mode.trim() === "2") {
+    const price = window.prompt(`Цена за ночь (${day.date}), сейчас ${day.price_per_night} ₽:`, String(day.price_per_night));
+    if (price === null || price === "") return;
+
+    const res = await fetchAdmin("/api/admin/day-price", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ date: day.date, pricePerNight: Number(price) })
+    });
+    const data = await readAdminResponse(res);
+    if (!res.ok) {
+      adminStatus.textContent = data.error || "Ошибка обновления цены.";
+      return;
+    }
+    adminStatus.textContent = `Цена обновлена: ${day.date} → ${data.day.price_per_night} ₽`;
+    await loadMonth();
+    return;
+  }
+
+  if (mode.trim() !== "1") {
+    adminStatus.textContent = "Введите 1 или 2.";
+    return;
+  }
+
   const status = window.prompt(`Статус для ${day.date} (free/busy):`, day.status);
   if (!status) return;
   const price = window.prompt(`Цена за ночь для ${day.date}:`, String(day.price_per_night));
@@ -81,11 +122,10 @@ async function editDay(day) {
   if (!guests) return;
   const note = window.prompt(`Комментарий для ${day.date}:`, day.note || "") || "";
 
-  const res = await fetch("/api/admin/day", {
+  const res = await fetchAdmin("/api/admin/day", {
     method: "POST",
     headers: {
-      "Content-Type": "application/json",
-      "x-admin-token": token
+      "Content-Type": "application/json"
     },
     body: JSON.stringify({
       date: day.date,
@@ -95,7 +135,7 @@ async function editDay(day) {
       note
     })
   });
-  const data = await res.json();
+  const data = await readAdminResponse(res);
   if (!res.ok) {
     adminStatus.textContent = data.error || "Ошибка обновления даты.";
     return;
@@ -106,3 +146,40 @@ async function editDay(day) {
 }
 
 loadMonthBtn.addEventListener("click", loadMonth);
+
+document.getElementById("applyMonthPrices").addEventListener("click", async () => {
+  const [year, month] = adminMonth.value.split("-").map(Number);
+  const weekdayPrice = Number(document.getElementById("priceWeekday").value);
+  const weekendPrice = Number(document.getElementById("priceWeekend").value);
+  const includeBusy = document.getElementById("priceIncludeBusy").checked;
+
+  if (Number.isNaN(weekdayPrice) || Number.isNaN(weekendPrice)) {
+    adminStatus.textContent = "Укажите корректные цены.";
+    return;
+  }
+
+  const ok = window.confirm(
+    `Применить цены к ${includeBusy ? "всем" : "свободным"} дням ${month}.${year}?\n` +
+      `Будни: ${weekdayPrice} ₽, выходные: ${weekendPrice} ₽`
+  );
+  if (!ok) return;
+
+  const res = await fetchAdmin("/api/admin/month-prices", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      year,
+      month,
+      weekdayPrice,
+      weekendPrice,
+      includeBusy
+    })
+  });
+  const data = await readAdminResponse(res);
+  if (!res.ok) {
+    adminStatus.textContent = data.error || "Ошибка.";
+    return;
+  }
+  adminStatus.textContent = `Обновлено дней: ${data.updated}`;
+  await loadMonth();
+});

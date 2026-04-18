@@ -7,23 +7,98 @@ const {
   calculatePrice,
   createBooking,
   getMonth,
-  upsertDay
+  upsertDay,
+  updateDayPrice,
+  updateMonthPrices
 } = require("./booking-service");
 
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
-const ADMIN_TOKEN = process.env.ADMIN_TOKEN || "change-this-admin-token";
 
-app.use(express.json());
-app.use(express.static(__dirname));
+const ADMIN_USER = process.env.ADMIN_USER || "admin";
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "";
 
-function requireAdmin(req, res, next) {
-  const token = req.header("x-admin-token") || req.query.token;
-  if (token !== ADMIN_TOKEN) {
-    return res.status(401).json({ error: "Unauthorized" });
+function requireBasicAdmin(req, res, next) {
+  if (!ADMIN_PASSWORD || ADMIN_PASSWORD === "change-this-admin-password") {
+    res.status(503).type("text/plain; charset=utf-8")
+      .send("Задайте ADMIN_USER и ADMIN_PASSWORD в файле .env и перезапустите сервер.");
+    return;
   }
+
+  const hdr = req.headers.authorization || "";
+  const m = /^Basic\s+(.+)$/i.exec(hdr);
+  if (!m) {
+    res.setHeader("WWW-Authenticate", 'Basic realm="Arenda Admin"');
+    res.status(401).send("Unauthorized");
+    return;
+  }
+
+  let decoded = "";
+  try {
+    decoded = Buffer.from(m[1], "base64").toString("utf8");
+  } catch {
+    res.setHeader("WWW-Authenticate", 'Basic realm="Arenda Admin"');
+    res.status(401).send("Unauthorized");
+    return;
+  }
+
+  const colon = decoded.indexOf(":");
+  const u = colon >= 0 ? decoded.slice(0, colon) : decoded;
+  const p = colon >= 0 ? decoded.slice(colon + 1) : "";
+
+  if (u !== ADMIN_USER || p !== ADMIN_PASSWORD) {
+    res.setHeader("WWW-Authenticate", 'Basic realm="Arenda Admin"');
+    res.status(401).send("Unauthorized");
+    return;
+  }
+
   return next();
 }
+
+app.use(express.json());
+
+app.get("/api/admin/calendar", requireBasicAdmin, async (req, res) => {
+  try {
+    const year = Number(req.query.year);
+    const month = Number(req.query.month);
+    const rows = await getMonth(year, month);
+    res.json({ year, month, days: rows });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+app.post("/api/admin/day", requireBasicAdmin, async (req, res) => {
+  try {
+    const row = await upsertDay(req.body);
+    res.json({ ok: true, day: row });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+app.post("/api/admin/day-price", requireBasicAdmin, async (req, res) => {
+  try {
+    const { date, pricePerNight } = req.body;
+    const row = await updateDayPrice(date, pricePerNight);
+    res.json({ ok: true, day: row });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+app.post("/api/admin/month-prices", requireBasicAdmin, async (req, res) => {
+  try {
+    const result = await updateMonthPrices(req.body);
+    res.json({ ok: true, ...result });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+app.get(["/admin", "/admin.html"], requireBasicAdmin, (req, res) => {
+  res.sendFile(path.join(__dirname, "admin.html"));
+});
 
 app.get("/api/availability", async (req, res) => {
   try {
@@ -65,29 +140,7 @@ app.get("/api/calendar", async (req, res) => {
   }
 });
 
-app.get("/api/admin/calendar", requireAdmin, async (req, res) => {
-  try {
-    const year = Number(req.query.year);
-    const month = Number(req.query.month);
-    const rows = await getMonth(year, month);
-    res.json({ year, month, days: rows });
-  } catch (error) {
-    res.status(400).json({ error: error.message });
-  }
-});
-
-app.post("/api/admin/day", requireAdmin, async (req, res) => {
-  try {
-    const row = await upsertDay(req.body);
-    res.json({ ok: true, day: row });
-  } catch (error) {
-    res.status(400).json({ error: error.message });
-  }
-});
-
-app.get("/admin", (req, res) => {
-  res.sendFile(path.join(__dirname, "admin.html"));
-});
+app.use(express.static(__dirname));
 
 async function start() {
   await initDb();
