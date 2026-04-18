@@ -15,21 +15,31 @@
     <div class="container">
       <span class="section-tag">бронирование</span>
       <h1 class="section-title">Проверьте свободные даты</h1>
-      <p class="section-text">Свободные даты обновляются в реальном времени</p>
+      <p class="section-text">Занятые даты отмечены на календаре — уточните актуальность перед оплатой</p>
 
       <div class="booking-card">
-        <div class="booking-calendar-wrap">
-          <iframe
-            src="https://calendar.google.com/calendar/embed?src=73df0dd7639eae53ac5be1a352224bcbf0f13c7ab7caa7458df72fd108ffb1ba%40group.calendar.google.com&ctz=Europe%2FMoscow&hl=ru&mode=MONTH&showTitle=0&showNav=1&showDate=1&showPrint=0&showTabs=0&showCalendars=0&showTz=0&wkst=2"
-            title="Календарь доступности дома"
-            loading="lazy">
-          </iframe>
+        <div class="booking-calendar-wrap" id="availabilityCalendar" aria-label="Календарь доступности">
+          <div class="acal">
+            <div class="acal-head">
+              <button type="button" class="acal-nav" id="acalPrev" aria-label="Предыдущий месяц">‹</button>
+              <div class="acal-title" id="acalTitle"></div>
+              <button type="button" class="acal-nav" id="acalNext" aria-label="Следующий месяц">›</button>
+            </div>
+            <div class="acal-weekdays" id="acalWeekdays"></div>
+            <div class="acal-grid" id="acalGrid"></div>
+            <div class="acal-legend">
+              <span class="acal-legend-item"><i class="acal-dot acal-dot-free"></i>Свободно</span>
+              <span class="acal-legend-item"><i class="acal-dot acal-dot-busy"></i>Занято</span>
+              <span class="acal-legend-item"><i class="acal-dot acal-dot-range"></i>Выбрано</span>
+            </div>
+          </div>
         </div>
         <p class="booking-note">Тариф: будни — 5 000 ₽, выходные — 7 000 ₽ за ночь.</p>
 
         <input type="text" id="guestName" aria-label="Ваше имя" placeholder="Ваше имя" required>
         <input type="tel" id="guestPhone" aria-label="Телефон" placeholder="Телефон" required>
         <input type="email" id="guestEmail" aria-label="Электронная почта" placeholder="Электронная почта">
+        <input type="number" id="guests" aria-label="Количество гостей" placeholder="Количество гостей" min="1" max="12" value="2">
         <input type="date" id="checkin" aria-label="Дата заезда">
         <input type="date" id="checkout" aria-label="Дата выезда">
 
@@ -58,90 +68,12 @@
 
       <div style="margin-top: 22px;">
         <a href="index.html" class="btn btn-outline">← Назад на сайт</a>
+        <a href="admin.html" class="btn btn-outline" style="margin-left:10px;">Админка</a>
       </div>
     </div>
   </section>
 
-  <script>
-    function calculatePrice() {
-      const priceEl = document.getElementById('price');
-      const checkinValue = document.getElementById('checkin').value;
-      const checkoutValue = document.getElementById('checkout').value;
-      const checkin = new Date(checkinValue);
-      const checkout = new Date(checkoutValue);
-
-      if (!checkinValue || !checkoutValue || checkout <= checkin) {
-        priceEl.innerText = 'Выберите корректные даты';
-        priceEl.classList.add('booking-price-small');
-        return;
-      }
-
-      const nights = (checkout - checkin) / (1000 * 60 * 60 * 24);
-      let total = 0;
-      const cursor = new Date(checkin);
-
-      for (let i = 0; i < nights; i += 1) {
-        const day = cursor.getDay();
-        const isWeekend = day === 0 || day === 6;
-        total += isWeekend ? 7000 : 5000;
-        cursor.setDate(cursor.getDate() + 1);
-      }
-
-      priceEl.innerText =
-        `${nights} ночи — ${total.toLocaleString('ru-RU')} ₽`;
-      priceEl.classList.remove('booking-price-small');
-    }
-
-    document.getElementById('checkin').addEventListener('change', calculatePrice);
-    document.getElementById('checkout').addEventListener('change', calculatePrice);
-    calculatePrice();
-
-    const TG_USERNAME = 'NataliaAI288';
-
-    function buildTelegramText() {
-      const name = document.getElementById('guestName').value.trim();
-      const phone = document.getElementById('guestPhone').value.trim();
-      const email = document.getElementById('guestEmail').value.trim();
-      const checkin = document.getElementById('checkin').value;
-      const checkout = document.getElementById('checkout').value;
-      const price = document.getElementById('price').innerText;
-      const consent = document.getElementById('consent').checked;
-
-      if (!name || !phone) {
-        alert('Пожалуйста, заполните имя и телефон.');
-        return null;
-      }
-      if (!consent) {
-        alert('Пожалуйста, подтвердите согласие на обработку персональных данных.');
-        return null;
-      }
-
-      let text = 'Здравствуйте! Хочу забронировать дом.\n';
-      text += `Имя: ${name}\n`;
-      text += `Телефон: ${phone}\n`;
-      if (email) text += `Email: ${email}\n`;
-      if (checkin && checkout) {
-        text += `Даты: ${checkin} — ${checkout}\n`;
-        text += `Расчет: ${price}\n`;
-      } else {
-        text += 'Даты: еще не выбраны (проверю в календаре)\n';
-      }
-      text += 'Сколько будет стоить?';
-      return text;
-    }
-
-    window.submitForm = function submitForm() {
-      const text = buildTelegramText();
-      if (!text) return;
-      window.open(`https://t.me/${TG_USERNAME}?text=${encodeURIComponent(text)}`, '_blank');
-    };
-
-    window.goTelegram = function goTelegram() {
-      const text = buildTelegramText();
-      if (!text) return;
-      window.open(`https://t.me/${TG_USERNAME}?text=${encodeURIComponent(text)}`, '_blank');
-    };
-  </script>
+  <script src="booking-app.js"></script>
   <a class="floating-contact" href="https://t.me/NataliaAI288" target="_blank" rel="noopener noreferrer">
     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
       <path d="M21.32 3.48a1.08 1.08 0 0 0-1.12-.16L2.55 10.3a1.1 1.1 0 0 0 .08 2.07l4.5 1.47 1.47 4.5a1.1 1.1 0 0 0 2.07.08l6.98-17.65a1.08 1.08 0 0 0-.16-1.12 1.08 1.08 0 0 0-1.12-.16zM8.9 13.28l8.3-6.03-6.03 8.3-.47 1.23-.44-1.34a1.1 1.1 0 0 0-.7-.7l-1.34-.44.68-.26z"/>

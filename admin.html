@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Админка бронирования</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <section class="section section-center">
+    <div class="container" style="max-width: 900px;">
+      <span class="section-tag">админка</span>
+      <h1 class="section-title">Управление календарём</h1>
+      <p class="section-text">Отмечайте занятость, цену и лимит гостей по датам.</p>
+
+      <div class="booking-card" style="max-width: 900px;">
+        <div style="display:flex; gap:8px; margin-bottom: 12px; flex-wrap: wrap;">
+          <input id="adminToken" type="password" placeholder="ADMIN_TOKEN" aria-label="Токен админа">
+          <input id="adminMonth" type="month" aria-label="Месяц">
+          <button id="loadMonth" class="btn btn-primary" type="button">Загрузить</button>
+        </div>
+        <div id="adminStatus" class="booking-small" style="margin-bottom: 10px;"></div>
+        <div class="booking-calendar-wrap">
+          <div class="acal">
+            <div class="acal-weekdays" id="adminWeekdays"></div>
+            <div class="acal-grid" id="adminGrid"></div>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top: 22px;">
+        <a href="booking.html" class="btn btn-outline">← К форме бронирования</a>
+      </div>
+    </div>
+  </section>
+  <script src="admin-app.js"></script>
+</body>
+</html>

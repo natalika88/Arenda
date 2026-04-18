@@ -1,0 +1,16 @@
+{
+  "name": "arenda-booking-system",
+  "version": "1.0.0",
+  "description": "Система бронирования дома с API, админкой и Telegram-ботом",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "bot": "node bot.js"
+  },
+  "dependencies": {
+    "dotenv": "latest",
+    "express": "latest",
+    "sqlite3": "latest",
+    "telegraf": "latest"
+  }
+}
