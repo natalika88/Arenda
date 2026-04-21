@@ -324,7 +324,7 @@ window.goTelegram = function goTelegram() {
     `Гостей: ${guestsInput.value || "1"}`,
     `Расчет: ${priceEl.textContent}`
   ].join("\n");
-  window.open(`https://t.me/NataliaAI288?text=${encodeURIComponent(text)}`, "_blank");
+  window.open(`https://t.me/ArendaDunaBot?text=${encodeURIComponent(text)}`, "_blank");
 };
 
 (async () => {
