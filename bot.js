@@ -1,4 +1,6 @@
 require("dotenv").config();
+const fs = require("fs");
+const path = require("path");
 const { Telegraf, Markup } = require("telegraf");
 const { initDb, calculatePrice } = require("./booking-service");
 
@@ -15,10 +17,80 @@ if (!BOT_TOKEN) {
 
 const bot = new Telegraf(BOT_TOKEN);
 const sessions = new Map();
+const BRIF_PATH = path.join(__dirname, "brif.txt");
+const BRIF_TEXT = loadBrifText();
+const BRIF_FAQ = parseBrifFaq(BRIF_TEXT);
+const BRIF_INTENTS = [
+  {
+    keys: ["wi-fi", "wifi", "вайфай", "интернет"],
+    answer:
+      "Да, в доме есть бесплатный Wi-Fi, покрытие по всему дому."
+  },
+  {
+    keys: ["спальн", "кроват", "мест", "гостей"],
+    answer:
+      "Дом рассчитан до 6 гостей, спальные места подготовлены, постельное бельё и полотенца предоставляются."
+  },
+  {
+    keys: ["кухн", "посуда", "микровол", "чайник", "холодильник", "плита"],
+    answer:
+      "Кухня полностью оборудована: посуда, холодильник, плита, микроволновка и чайник есть."
+  },
+  {
+    keys: ["мангал", "шампур", "решет", "барбекю"],
+    answer:
+      "Да, для гостей есть мангал, решётка и шампуры."
+  },
+  {
+    keys: ["дет", "ребен", "малыш"],
+    answer:
+      "Дом подходит для семьи с детьми: есть детский стол и стульчик, на участке достаточно места для игр."
+  },
+  {
+    keys: ["живот", "собак", "кот", "питом"],
+    answer:
+      "С животными можно по согласованию. Напишите, пожалуйста, породу и размер питомца."
+  },
+  {
+    keys: ["парков", "машин", "авто"],
+    answer:
+      "На территории есть парковка, обычно до 2–3 автомобилей."
+  },
+  {
+    keys: ["стираль", "посудомоеч", "кондицион"],
+    answer:
+      "Стиральной и посудомоечной машины в доме нет, кондиционера тоже нет."
+  },
+  {
+    keys: ["адрес", "как добрат", "где находится", "локац"],
+    answer:
+      "Адрес: Санкт-Петербург, Курортный район, посёлок Белоостров, район Дюны, Западная улица, 6."
+  },
+  {
+    keys: ["заезд", "выезд", "время"],
+    answer:
+      "Заезд после 14:00, выезд до 12:00. При необходимости можно отдельно уточнить ранний заезд или поздний выезд."
+  },
+  {
+    keys: ["курен", "шум", "правил"],
+    answer:
+      "Курение в доме запрещено, шум желательно ограничить после 23:00."
+  },
+  {
+    keys: ["что рядом", "инфраструктур", "магазин", "аптек", "останов", "пляж", "гольф"],
+    answer:
+      "Рядом есть магазины и остановки в Белоострове, а также зона Дюн и побережье Финского залива для отдыха."
+  },
+  {
+    keys: ["оплат", "предоплат", "отмен", "услов"],
+    answer:
+      "Бронирование по предоплате. Точные условия оплаты и отмены уточняются при подтверждении брони."
+  }
+];
 
 const REPLIES = {
   hello:
-    "Здравствуйте. Помогу с бронью дома. Подскажите, пожалуйста, даты заезда и выезда.",
+    "Здравствуйте! 👋 Вас приветствует бот Дома в Дюнах. Напишите ваш вопрос.",
   askDates:
     "Напишите даты заезда и выезда, например: 2026-06-10 2026-06-14.",
   askGuests:
@@ -36,6 +108,131 @@ const REPLIES = {
   fallbackError:
     "Я не расслышал формат. Напишите даты так: 2026-06-10 2026-06-14."
 };
+
+function loadBrifText() {
+  try {
+    return fs.readFileSync(BRIF_PATH, "utf8");
+  } catch {
+    return "";
+  }
+}
+
+function parseBrifFaq(text) {
+  if (!text) return [];
+  const lines = text.split(/\r?\n/);
+  const items = [];
+  let currentQuestion = "";
+  let currentAnswer = [];
+
+  const flush = () => {
+    if (!currentQuestion || !currentAnswer.length) return;
+    const answer = currentAnswer.join(" ").replace(/\s+/g, " ").trim();
+    if (answer) {
+      items.push({
+        question: currentQuestion,
+        answer
+      });
+    }
+  };
+
+  for (const raw of lines) {
+    const line = raw.trim();
+    if (!line) continue;
+    if (line.startsWith("— ")) {
+      flush();
+      currentQuestion = line.slice(2).trim();
+      currentAnswer = [];
+      continue;
+    }
+    if (currentQuestion) {
+      // Останавливаем сбор ответа, если начинается новый раздел.
+      if (/^\d+\./.test(line) || /^###/.test(line)) {
+        flush();
+        currentQuestion = "";
+        currentAnswer = [];
+        continue;
+      }
+      currentAnswer.push(line);
+    }
+  }
+  flush();
+  return items;
+}
+
+function containsAny(text, words) {
+  return words.some((w) => text.includes(w));
+}
+
+function firstSentences(text, count = 2) {
+  const parts = text
+    .replace(/\s+/g, " ")
+    .split(/(?<=[.!?])\s+/)
+    .filter(Boolean);
+  return parts.slice(0, count).join(" ").trim();
+}
+
+function answerFromBrif(text) {
+  if (!BRIF_TEXT) return "";
+  const lower = text.toLowerCase();
+  const normalized = lower.replace(/ё/g, "е");
+
+  // 0) Сначала intent-скоринг по ключевым словам.
+  const intents = BRIF_INTENTS
+    .map((intent) => {
+      let score = 0;
+      for (const key of intent.keys) {
+        const k = key.toLowerCase().replace(/ё/g, "е");
+        if (normalized.includes(k)) score += 1;
+      }
+      return { ...intent, score };
+    })
+    .filter((i) => i.score > 0)
+    .sort((a, b) => b.score - a.score);
+
+  if (intents.length) {
+    return intents[0].answer;
+  }
+
+  // 1) Сначала ищем в блоке FAQ, если вопрос похож.
+  const rankedFaq = BRIF_FAQ
+    .map((item) => {
+      const q = item.question.toLowerCase().replace(/ё/g, "е");
+      const score =
+        (q.includes("wi-fi") && containsAny(normalized, ["wifi", "wi-fi", "вайфай", "интернет"]) ? 3 : 0) +
+        (q.includes("спальн") && containsAny(normalized, ["спальн", "кроват", "мест"]) ? 3 : 0) +
+        (q.includes("животн") && containsAny(normalized, ["живот", "собак", "кот"]) ? 3 : 0) +
+        (q.includes("парков") && containsAny(normalized, ["парков", "машин", "авто"]) ? 3 : 0) +
+        (q.includes("мангал") && containsAny(normalized, ["мангал", "шампур", "решет"]) ? 3 : 0) +
+        (q.includes("стиральн") && containsAny(normalized, ["стираль", "посудомоеч"]) ? 3 : 0) +
+        (q.includes("брониров") && containsAny(normalized, ["брон", "оплат", "предоплат"]) ? 3 : 0);
+      return { ...item, score };
+    })
+    .filter((x) => x.score > 0)
+    .sort((a, b) => b.score - a.score);
+
+  if (rankedFaq.length) {
+    return firstSentences(rankedFaq[0].answer, 2);
+  }
+
+  // 2) Короткие тематические ответы из общего текста brif.
+  if (containsAny(normalized, ["адрес", "как добрат", "где находится"])) {
+    return "Адрес: Санкт-Петербург, Курортный район, посёлок Белоостров, район Дюны, Западная улица, 6.";
+  }
+  if (containsAny(normalized, ["заезд", "выезд"])) {
+    return "Заезд после 14:00, выезд до 12:00. Если нужно другое время, уточним по возможности.";
+  }
+  if (containsAny(normalized, ["дет", "ребен"])) {
+    return "Дом подходит для семей с детьми: есть детский стол и стульчик, а на участке достаточно места для игр.";
+  }
+  if (containsAny(normalized, ["курен"])) {
+    return "Курение в доме запрещено, на улице — можно.";
+  }
+  if (containsAny(normalized, ["что рядом", "магазин", "инфраструктур", "останов"])) {
+    return "Рядом есть магазины в Белоострове, остановки автобусов и места отдыха в зоне Дюн у Финского залива.";
+  }
+
+  return "";
+}
 
 function getSession(userId) {
   if (!sessions.has(userId)) {
@@ -141,19 +338,8 @@ async function sendPhotoIfAny(ctx) {
 }
 
 async function checkAvailabilityWithFallback(checkin, checkout, guests) {
-  try {
-    return await calculatePrice(checkin, checkout, guests);
-  } catch {
-    const nights = dateDiffNights(checkin, checkout);
-    const available = nights > 0 && (new Date(checkin).getDate() % 5 !== 0);
-    const total = nights * (guests > 2 ? 7000 : 5000);
-    return {
-      available,
-      blockedDate: available ? null : checkin,
-      nights,
-      total
-    };
-  }
+  // Источник доступности и цены: данные из админки (daily_rates в БД).
+  return calculatePrice(checkin, checkout, guests);
 }
 
 async function tryQuoteAndOffer(ctx, session) {
@@ -310,8 +496,17 @@ bot.on("text", async (ctx) => {
     lower.includes("заезд") ||
     lower.includes("выезд")
   ) {
-    await ctx.reply(REPLIES.houseShort);
+    const briefAnswer = answerFromBrif(lower);
+    await ctx.reply(briefAnswer || REPLIES.houseShort);
     await ctx.reply("Если хотите, сразу посчитаю стоимость на ваши даты.", mainKeyboard());
+    scheduleReminder(ctx, session);
+    return;
+  }
+
+  const briefAnswer = answerFromBrif(lower);
+  if (briefAnswer) {
+    await ctx.reply(briefAnswer);
+    await ctx.reply("Если удобно, могу сразу проверить доступность на ваши даты.", mainKeyboard());
     scheduleReminder(ctx, session);
     return;
   }
