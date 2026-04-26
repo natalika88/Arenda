@@ -98,15 +98,15 @@ const REPLIES = {
   askContact:
     "Отлично, могу передать бронь менеджеру. Оставьте телефон или нажмите кнопку отправки контакта.",
   askQuestions:
-    "Если хотите, отвечу на вопросы по дому. Или могу сразу отправить ссылку на бронь.",
+    "Если хотите, отвечу на вопросы по дому и условиям. Когда будете готовы, помогу перейти к бронированию.",
   houseShort:
     "Дом рассчитан до 6 гостей: 3 спальни, тихий участок и удобный заезд из Петербурга.",
   reminder:
-    "Если актуально, я помогу закончить бронь за минуту. Напишите даты и количество гостей.",
+    "Если останутся вопросы по дому или условиям, напишите. Когда будете готовы, подберу даты и стоимость.",
   unavailable:
     "На эти даты, к сожалению, уже занято. Могу подобрать ближайшие свободные.",
   fallbackError:
-    "Я не расслышал формат. Напишите даты так: 2026-06-10 2026-06-14."
+    "Могу помочь с любыми вопросами по дому. Если хотите проверить стоимость, напишите даты так: 2026-06-10 2026-06-14."
 };
 
 function loadBrifText() {
@@ -378,7 +378,7 @@ async function tryQuoteAndOffer(ctx, session) {
   );
   await ctx.reply(REPLIES.houseShort);
   await ctx.reply(
-    "Если удобно, оформим бронь сейчас.",
+    "Если захотите, пришлю ссылку для бронирования или отвечу на дополнительные вопросы.",
     Markup.inlineKeyboard([
       Markup.button.url(
         "Забронировать",
@@ -498,7 +498,7 @@ bot.on("text", async (ctx) => {
   ) {
     const briefAnswer = answerFromBrif(lower);
     await ctx.reply(briefAnswer || REPLIES.houseShort);
-    await ctx.reply("Если хотите, сразу посчитаю стоимость на ваши даты.", mainKeyboard());
+    await ctx.reply("Если нужно, могу посчитать стоимость на ваши даты или ответить на другие вопросы.", mainKeyboard());
     scheduleReminder(ctx, session);
     return;
   }
@@ -506,7 +506,7 @@ bot.on("text", async (ctx) => {
   const briefAnswer = answerFromBrif(lower);
   if (briefAnswer) {
     await ctx.reply(briefAnswer);
-    await ctx.reply("Если удобно, могу сразу проверить доступность на ваши даты.", mainKeyboard());
+    await ctx.reply("Если хотите, также могу проверить доступность и стоимость на ваши даты.", mainKeyboard());
     scheduleReminder(ctx, session);
     return;
   }
