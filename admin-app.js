@@ -40,7 +40,11 @@ async function loadMonth() {
   const res = await fetchAdmin(`/api/admin/calendar?year=${year}&month=${month}`);
   const data = await readAdminResponse(res);
   if (!res.ok) {
-    adminStatus.textContent = data.error || "Ошибка загрузки.";
+    if (res.status === 401) {
+      adminStatus.textContent = "Нет доступа. Откройте /admin в обычном браузере и введите логин/пароль заново.";
+    } else {
+      adminStatus.textContent = data.error || "Ошибка загрузки.";
+    }
     return;
   }
 
@@ -84,43 +88,33 @@ function renderGrid(days, year, month) {
 }
 
 async function editDay(day) {
-  const mode = window.prompt(
-    `${day.date}\n1 — полная правка (статус, цена, гости)\n2 — только цена`,
-    "2"
+  const priceRaw = window.prompt(
+    `Дата: ${day.date}\nУкажите цену за ночь (₽):`,
+    String(day.price_per_night)
   );
-  if (mode === null || mode === "") return;
-
-  if (mode.trim() === "2") {
-    const price = window.prompt(`Цена за ночь (${day.date}), сейчас ${day.price_per_night} ₽:`, String(day.price_per_night));
-    if (price === null || price === "") return;
-
-    const res = await fetchAdmin("/api/admin/day-price", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ date: day.date, pricePerNight: Number(price) })
-    });
-    const data = await readAdminResponse(res);
-    if (!res.ok) {
-      adminStatus.textContent = data.error || "Ошибка обновления цены.";
-      return;
-    }
-    adminStatus.textContent = `Цена обновлена: ${day.date} → ${data.day.price_per_night} ₽`;
-    await loadMonth();
+  if (priceRaw === null || priceRaw === "") return;
+  const price = Number(priceRaw);
+  if (Number.isNaN(price) || price < 0) {
+    adminStatus.textContent = "Некорректная цена.";
     return;
   }
 
-  if (mode.trim() !== "1") {
-    adminStatus.textContent = "Введите 1 или 2.";
+  const statusRaw = window.prompt(
+    `Статус для ${day.date}:\n1 — Свободно\n2 — Занято\n(можно ввести: free/busy или свободно/занято)`,
+    day.status === "busy" ? "2" : "1"
+  );
+  if (statusRaw === null || statusRaw === "") return;
+  const statusInput = statusRaw.trim().toLowerCase();
+  let status = "";
+  if (statusInput === "1" || statusInput === "free" || statusInput === "свободно") {
+    status = "free";
+  } else if (statusInput === "2" || statusInput === "busy" || statusInput === "занято") {
+    status = "busy";
+  }
+  if (!["free", "busy"].includes(status)) {
+    adminStatus.textContent = "Введите 1/2, free/busy или свободно/занято.";
     return;
   }
-
-  const status = window.prompt(`Статус для ${day.date} (free/busy):`, day.status);
-  if (!status) return;
-  const price = window.prompt(`Цена за ночь для ${day.date}:`, String(day.price_per_night));
-  if (!price) return;
-  const guests = window.prompt(`Лимит гостей для ${day.date}:`, String(day.guest_limit));
-  if (!guests) return;
-  const note = window.prompt(`Комментарий для ${day.date}:`, day.note || "") || "";
 
   const res = await fetchAdmin("/api/admin/day", {
     method: "POST",
@@ -129,10 +123,10 @@ async function editDay(day) {
     },
     body: JSON.stringify({
       date: day.date,
-      status: status.trim(),
-      pricePerNight: Number(price),
-      guestLimit: Number(guests),
-      note
+      status,
+      pricePerNight: price,
+      guestLimit: Number(day.guest_limit),
+      note: day.note || ""
     })
   });
   const data = await readAdminResponse(res);
@@ -141,7 +135,8 @@ async function editDay(day) {
     return;
   }
 
-  adminStatus.textContent = `Обновлено: ${data.day.date}`;
+  adminStatus.textContent =
+    `Обновлено: ${data.day.date} — ${Number(data.day.price_per_night).toLocaleString("ru-RU")} ₽, ${data.day.status}`;
   await loadMonth();
 }
 
@@ -182,4 +177,9 @@ document.getElementById("applyMonthPrices").addEventListener("click", async () =
   }
   adminStatus.textContent = `Обновлено дней: ${data.updated}`;
   await loadMonth();
+});
+
+// Автозагрузка календаря при открытии админки.
+loadMonth().catch(() => {
+  adminStatus.textContent = "Не удалось загрузить календарь. Обновите страницу и войдите в админку снова.";
 });

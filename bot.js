@@ -7,7 +7,7 @@ const { initDb, calculatePrice } = require("./booking-service");
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const BASE_URL = process.env.BASE_URL || "http://localhost:3000";
 const MANAGER_PHONE = process.env.MANAGER_PHONE || "+7 931 221-88-67";
-const MANAGER_TG = process.env.MANAGER_TG || "ArendaDunaBot";
+const MANAGER_TG = process.env.MANAGER_TG || "NataliaAI288";
 const HOUSE_PHOTO_URL = process.env.HOUSE_PHOTO_URL || "";
 const REMINDER_DELAY_MS = 2 * 60 * 1000;
 
@@ -32,9 +32,34 @@ const BRIF_INTENTS = [
       "Дом рассчитан до 6 гостей, спальные места подготовлены, постельное бельё и полотенца предоставляются."
   },
   {
+    keys: ["полотен", "белье", "постельн", "простын", "пододеяль"],
+    answer:
+      "Да, полотенца и свежее постельное бельё предоставляются каждому гостю."
+  },
+  {
     keys: ["кухн", "посуда", "микровол", "чайник", "холодильник", "плита"],
     answer:
       "Кухня полностью оборудована: посуда, холодильник, плита, микроволновка и чайник есть."
+  },
+  {
+    keys: ["подушк", "одеял"],
+    answer:
+      "Да, в доме есть подушки и одеяла, всё подготовлено для комфортного сна."
+  },
+  {
+    keys: ["фен", "душ", "туалет", "горяч", "вода"],
+    answer:
+      "Да, в доме есть душевая, туалет, горячая вода и фен для волос."
+  },
+  {
+    keys: ["телев", "smart", "тв"],
+    answer:
+      "Да, в доме есть телевизор (Smart TV)."
+  },
+  {
+    keys: ["отоплен", "тепло", "зимой"],
+    answer:
+      "Да, в доме есть отопление, поэтому отдыхать комфортно и в прохладный сезон."
   },
   {
     keys: ["мангал", "шампур", "решет", "барбекю"],
@@ -163,6 +188,19 @@ function containsAny(text, words) {
   return words.some((w) => text.includes(w));
 }
 
+function tokenize(text) {
+  return text
+    .split(/[^a-zа-я0-9ё-]+/i)
+    .map((w) => w.trim())
+    .filter(Boolean);
+}
+
+function matchesKey(normalizedText, tokens, key) {
+  const k = key.toLowerCase().replace(/ё/g, "е");
+  if (k.includes(" ")) return normalizedText.includes(k);
+  return tokens.some((t) => t === k || t.startsWith(k));
+}
+
 function firstSentences(text, count = 2) {
   const parts = text
     .replace(/\s+/g, " ")
@@ -175,14 +213,14 @@ function answerFromBrif(text) {
   if (!BRIF_TEXT) return "";
   const lower = text.toLowerCase();
   const normalized = lower.replace(/ё/g, "е");
+  const tokens = tokenize(normalized);
 
   // 0) Сначала intent-скоринг по ключевым словам.
   const intents = BRIF_INTENTS
     .map((intent) => {
       let score = 0;
       for (const key of intent.keys) {
-        const k = key.toLowerCase().replace(/ё/g, "е");
-        if (normalized.includes(k)) score += 1;
+        if (matchesKey(normalized, tokens, key)) score += 1;
       }
       return { ...intent, score };
     })
@@ -231,6 +269,38 @@ function answerFromBrif(text) {
     return "Рядом есть магазины в Белоострове, остановки автобусов и места отдыха в зоне Дюн у Финского залива.";
   }
 
+  // 3) Поиск по строкам brif.txt для свободных формулировок.
+  const words = normalized
+    .split(/[^a-zа-я0-9ё-]+/i)
+    .map((w) => w.trim())
+    .filter((w) => w.length >= 4 && !["если", "хотите", "можно", "вопрос", "дому", "условия"].includes(w));
+  if (words.length) {
+    const lines = BRIF_TEXT
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter((l) =>
+        l &&
+        !l.startsWith("###") &&
+        !/^\d+\./.test(l) &&
+        !l.startsWith("*(") &&
+        !l.includes("список кнопок") &&
+        !l.includes("Дальше — шаблонные ответы")
+      );
+    let bestLine = "";
+    let bestScore = 0;
+    for (const line of lines) {
+      const ll = line.toLowerCase().replace(/ё/g, "е");
+      const score = words.reduce((acc, w) => (ll.includes(w) ? acc + 1 : acc), 0);
+      if (score > bestScore) {
+        bestScore = score;
+        bestLine = line;
+      }
+    }
+    if (bestScore >= 2) {
+      return firstSentences(bestLine, 1);
+    }
+  }
+
   return "";
 }
 
@@ -270,9 +340,13 @@ function parseIsoDate(raw) {
 }
 
 function parseRuDate(raw) {
-  const m = raw.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+  const m = raw.match(/^(\d{1,2})\.(\d{1,2})\.(\d{2}|\d{4})$/);
   if (!m) return null;
-  const date = new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
+  let year = Number(m[3]);
+  if (m[3].length === 2) {
+    year += 2000;
+  }
+  const date = new Date(year, Number(m[2]) - 1, Number(m[1]));
   if (Number.isNaN(date.getTime())) return null;
   return toISO(date);
 }
@@ -286,9 +360,13 @@ function toISO(d) {
 
 function parseDatesFromText(text) {
   const normalized = (text || "").trim();
-  const parts = normalized.split(/\s+|—|-|по|до|с/).filter(Boolean);
+  // Ищем даты прямо в тексте, чтобы работали форматы:
+  // 2026-06-10 2026-06-14
+  // 01.05.2026-03.05.2026
+  // 01.05.26 по 03.05.26
+  const matches = normalized.match(/\d{4}-\d{2}-\d{2}|\d{1,2}\.\d{1,2}\.(?:\d{2}|\d{4})/g) || [];
   const candidates = [];
-  for (const p of parts) {
+  for (const p of matches) {
     const iso = parseIsoDate(p);
     if (iso) candidates.push(iso);
     const ru = parseRuDate(p);
@@ -325,6 +403,25 @@ function mainKeyboard() {
     ["Количество гостей", "Фото дома"],
     ["Забронировать", "Контакты менеджера"]
   ]).resize();
+}
+
+function hasBookingCore(session) {
+  return Boolean(session.checkin && session.checkout && session.guests);
+}
+
+async function offerBookingActions(ctx, session) {
+  if (!hasBookingCore(session)) {
+    await ctx.reply("Чтобы оформить бронь, сначала подскажите даты и количество гостей.", mainKeyboard());
+    return;
+  }
+
+  await ctx.reply(
+    "Готово. Могу дать ссылку для самостоятельной брони или передать вашу заявку менеджеру.",
+    Markup.keyboard([
+      ["Открыть ссылку брони", "Передать менеджеру"],
+      ["Отмена"]
+    ]).resize()
+  );
 }
 
 async function sendPhotoIfAny(ctx) {
@@ -378,7 +475,7 @@ async function tryQuoteAndOffer(ctx, session) {
   );
   await ctx.reply(REPLIES.houseShort);
   await ctx.reply(
-    "Если захотите, пришлю ссылку для бронирования или отвечу на дополнительные вопросы.",
+    "Если захотите, пришлю ссылку для бронирования или передам заявку менеджеру.",
     Markup.inlineKeyboard([
       Markup.button.url(
         "Забронировать",
@@ -441,6 +538,37 @@ bot.on("text", async (ctx) => {
   }
 
   if (lower === "забронировать") {
+    await offerBookingActions(ctx, session);
+    scheduleReminder(ctx, session);
+    return;
+  }
+
+  if (lower === "открыть ссылку брони") {
+    if (!hasBookingCore(session)) {
+      await ctx.reply("Нужны даты и количество гостей, чтобы открыть ссылку с уже заполненными данными.", mainKeyboard());
+      scheduleReminder(ctx, session);
+      return;
+    }
+    await ctx.reply(
+      "Вот ссылка на бронь с вашими данными:",
+      Markup.inlineKeyboard([
+        Markup.button.url(
+          "Открыть форму бронирования",
+          bookingLink(session.checkin, session.checkout, session.guests)
+        )
+      ])
+    );
+    await ctx.reply("Если хотите, могу также передать заявку менеджеру.", mainKeyboard());
+    scheduleReminder(ctx, session);
+    return;
+  }
+
+  if (lower === "передать менеджеру") {
+    if (!hasBookingCore(session)) {
+      await ctx.reply("Передам менеджеру. Подскажите даты и количество гостей, чтобы заявка была полной.", mainKeyboard());
+      scheduleReminder(ctx, session);
+      return;
+    }
     session.awaitingContact = true;
     await ctx.reply(
       REPLIES.askContact,
@@ -449,6 +577,16 @@ bot.on("text", async (ctx) => {
         ["Отмена"]
       ]).resize()
     );
+    scheduleReminder(ctx, session);
+    return;
+  }
+
+  if (
+    lower.includes("хочу забронировать") ||
+    lower.includes("готов забронировать") ||
+    lower.includes("желаю забронировать")
+  ) {
+    await offerBookingActions(ctx, session);
     scheduleReminder(ctx, session);
     return;
   }
@@ -477,7 +615,16 @@ bot.on("text", async (ctx) => {
     return;
   }
 
-  if (lower.includes("сколько стоит") || lower.includes("цена")) {
+  if (
+    lower.includes("сколько стоит") ||
+    lower.includes("цена") ||
+    lower.includes("стоимост")
+  ) {
+    if (lower.includes("сутк") || lower.includes("ноч")) {
+      await ctx.reply("Обычно будни от 5 000 ₽ за ночь, выходные от 7 000 ₽. Точную стоимость считаю по вашим датам.");
+      scheduleReminder(ctx, session);
+      return;
+    }
     if (!session.checkin || !session.checkout) {
       await ctx.reply(REPLIES.askDates, mainKeyboard());
     } else if (!session.guests) {
@@ -523,8 +670,11 @@ bot.on("contact", async (ctx) => {
   const session = getSession(ctx.from.id);
   clearReminder(session);
   const phone = ctx.message.contact.phone_number;
+  const details = hasBookingCore(session)
+    ? `\nЗаявка: ${session.checkin} - ${session.checkout}, гостей: ${session.guests}.`
+    : "";
   await ctx.reply(
-    `Спасибо. Передала менеджеру: ${phone}. Он свяжется с вами в ближайшее время.`,
+    `Спасибо. Передала менеджеру ваш контакт: ${phone}.${details} Менеджер свяжется с вами в ближайшее время.`,
     mainKeyboard()
   );
   session.awaitingContact = false;

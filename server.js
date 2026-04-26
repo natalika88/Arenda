@@ -17,6 +17,51 @@ const PORT = Number(process.env.PORT || 3000);
 
 const ADMIN_USER = process.env.ADMIN_USER || "admin";
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "";
+const BOT_TOKEN = process.env.BOT_TOKEN || "";
+const MANAGER_TG = (process.env.MANAGER_TG || "NataliaAI288").replace(/^@/, "");
+const MANAGER_CHAT_ID = process.env.MANAGER_CHAT_ID || "";
+
+async function notifyManagerAboutBooking(payload, booking) {
+  if (!BOT_TOKEN) return;
+
+  const checkin = payload.checkin || booking.checkin;
+  const checkout = payload.checkout || booking.checkout;
+  const guests = payload.guests || booking.guests;
+  const guestName = payload.guestName || "Без имени";
+  const guestPhone = payload.guestPhone || "не указан";
+  const guestEmail = payload.guestEmail || "не указан";
+  const total = Number(booking.total || 0).toLocaleString("ru-RU");
+
+  const text =
+    "Новая заявка с сайта\n" +
+    `Бронь #${booking.id}\n` +
+    `Имя: ${guestName}\n` +
+    `Телефон: ${guestPhone}\n` +
+    `Email: ${guestEmail}\n` +
+    `Даты: ${checkin} — ${checkout}\n` +
+    `Гостей: ${guests}\n` +
+    `Сумма: ${total} ₽`;
+
+  const candidates = [];
+  if (MANAGER_CHAT_ID) candidates.push(MANAGER_CHAT_ID);
+  if (MANAGER_TG) candidates.push(`@${MANAGER_TG}`);
+
+  for (const chatId of candidates) {
+    try {
+      const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text
+        })
+      });
+      if (res.ok) return;
+    } catch {
+      // Пробуем следующий вариант chat_id.
+    }
+  }
+}
 
 function requireBasicAdmin(req, res, next) {
   if (!ADMIN_PASSWORD || ADMIN_PASSWORD === "change-this-admin-password") {
@@ -123,6 +168,7 @@ app.get("/api/price", async (req, res) => {
 app.post("/api/bookings", async (req, res) => {
   try {
     const booking = await createBooking(req.body);
+    notifyManagerAboutBooking(req.body, booking).catch(() => {});
     res.status(201).json({ ok: true, booking });
   } catch (error) {
     res.status(400).json({ error: error.message });

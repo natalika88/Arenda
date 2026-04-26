@@ -1349,9 +1349,10 @@ img { max-width: 100%; display: block; }
 
 .acal-day--busy,
 .acal-day--busy:disabled {
-  background: rgba(200, 149, 108, .18);
-  color: var(--c-bark-soft);
-  text-decoration: line-through;
+  background: rgba(201, 44, 44, .18);
+  border-color: rgba(201, 44, 44, .35);
+  color: #8f1111;
+  text-decoration: none;
   opacity: .85;
   cursor: not-allowed;
 }
@@ -1401,7 +1402,7 @@ img { max-width: 100%; display: block; }
 }
 
 .acal-dot-busy {
-  background: rgba(200, 149, 108, .55);
+  background: rgba(201, 44, 44, .65);
 }
 
 .acal-dot-range {
@@ -1464,6 +1465,16 @@ img { max-width: 100%; display: block; }
   padding: 4px 2px;
   max-height: 52px;
   min-height: 44px;
+}
+
+/* В админке занятые даты выделяем красным */
+.acal-day--admin.acal-day--busy,
+.acal-day--admin.acal-day--busy:disabled {
+  background: rgba(201, 44, 44, .18);
+  border-color: rgba(201, 44, 44, .45);
+  color: #8f1111;
+  text-decoration: none;
+  opacity: 1;
 }
 
 .admin-cal-daynum {
