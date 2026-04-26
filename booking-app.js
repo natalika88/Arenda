@@ -276,15 +276,13 @@ guestsInput.addEventListener("change", onDatesChange);
 
 window.submitForm = async function submitForm() {
   const guestName = document.getElementById("guestName").value.trim();
-  const guestPhone = document.getElementById("guestPhone").value.trim();
-  const guestEmail = document.getElementById("guestEmail").value.trim();
   const checkin = checkinInput.value;
   const checkout = checkoutInput.value;
   const consent = document.getElementById("consent").checked;
   const guests = Number(guestsInput.value || 1);
 
-  if (!guestName || !guestPhone) {
-    alert("Пожалуйста, заполните имя и телефон.");
+  if (!guestName) {
+    alert("Пожалуйста, заполните имя.");
     return;
   }
   if (!consent) {
@@ -305,8 +303,8 @@ window.submitForm = async function submitForm() {
       checkout,
       guests,
       guestName,
-      guestPhone,
-      guestEmail
+      guestPhone: "не указан",
+      guestEmail: ""
     })
   });
   const data = await res.json();
