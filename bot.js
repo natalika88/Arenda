@@ -8,6 +8,7 @@ const BOT_TOKEN = process.env.BOT_TOKEN;
 const BASE_URL = process.env.BASE_URL || "http://localhost:3000";
 const MANAGER_PHONE = process.env.MANAGER_PHONE || "+7 931 221-88-67";
 const MANAGER_TG = process.env.MANAGER_TG || "NataliaAI288";
+const MANAGER_CHAT_ID = process.env.MANAGER_CHAT_ID || "";
 const HOUSE_PHOTO_URL = process.env.HOUSE_PHOTO_URL || "";
 const REMINDER_DELAY_MS = 2 * 60 * 1000;
 
@@ -397,6 +398,11 @@ function bookingLink(checkin, checkout, guests) {
   return `${BASE_URL}/booking.html?checkin=${checkin}&checkout=${checkout}&guests=${guests}`;
 }
 
+function canUsePublicBookingLink() {
+  const base = (BASE_URL || "").toLowerCase();
+  return base.startsWith("https://") || (!base.includes("localhost") && !base.includes("127.0.0.1"));
+}
+
 function mainKeyboard() {
   return Markup.keyboard([
     ["Указать даты", "Сколько стоит?"],
@@ -415,10 +421,21 @@ async function offerBookingActions(ctx, session) {
     return;
   }
 
+  if (canUsePublicBookingLink()) {
+    await ctx.reply(
+      "Готово. Могу дать ссылку для самостоятельной брони или передать вашу заявку менеджеру.",
+      Markup.keyboard([
+        ["Открыть ссылку брони", "Передать менеджеру"],
+        ["Отмена"]
+      ]).resize()
+    );
+    return;
+  }
+
   await ctx.reply(
-    "Готово. Могу дать ссылку для самостоятельной брони или передать вашу заявку менеджеру.",
+    "Готово. Сейчас сайт работает на локальном адресе, поэтому сразу передам заявку менеджеру.",
     Markup.keyboard([
-      ["Открыть ссылку брони", "Передать менеджеру"],
+      ["Передать менеджеру"],
       ["Отмена"]
     ]).resize()
   );
@@ -432,6 +449,42 @@ async function sendPhotoIfAny(ctx) {
     return;
   }
   await ctx.reply("Фото отправлю после запуска на хостинге. Пока могу ответить по условиям.");
+}
+
+async function sendManagerLeadFromBot(ctx, session, phone) {
+  const chatIdCandidates = [];
+  if (MANAGER_CHAT_ID) chatIdCandidates.push(MANAGER_CHAT_ID);
+  if (MANAGER_TG) chatIdCandidates.push(`@${MANAGER_TG.replace(/^@/, "")}`);
+  if (!chatIdCandidates.length) return false;
+
+  const user = ctx.from || {};
+  const details = hasBookingCore(session)
+    ? `Даты: ${session.checkin} - ${session.checkout}\nГостей: ${session.guests}\n`
+    : "";
+  const text =
+    "Новая заявка из Telegram-бота\n" +
+    `Клиент: ${user.first_name || ""} ${user.last_name || ""}\n` +
+    `Username: ${user.username ? `@${user.username}` : "не указан"}\n` +
+    `Телефон: ${phone}\n` +
+    details;
+
+  for (const chatId of chatIdCandidates) {
+    try {
+      const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text
+        })
+      });
+      if (res.ok) return true;
+    } catch {
+      // попробуем следующий chat_id
+    }
+  }
+
+  return false;
 }
 
 async function checkAvailabilityWithFallback(checkin, checkout, guests) {
@@ -474,15 +527,21 @@ async function tryQuoteAndOffer(ctx, session) {
     `Свободно. Стоимость ${result.total.toLocaleString("ru-RU")} ₽ за весь период.`
   );
   await ctx.reply(REPLIES.houseShort);
-  await ctx.reply(
-    "Если захотите, пришлю ссылку для бронирования или передам заявку менеджеру.",
-    Markup.inlineKeyboard([
-      Markup.button.url(
-        "Забронировать",
-        bookingLink(session.checkin, session.checkout, session.guests)
-      )
-    ])
-  );
+  if (canUsePublicBookingLink()) {
+    await ctx.reply(
+      "Если захотите, пришлю ссылку для бронирования или передам заявку менеджеру.",
+      Markup.inlineKeyboard([
+        Markup.button.url(
+          "Забронировать",
+          bookingLink(session.checkin, session.checkout, session.guests)
+        )
+      ])
+    );
+  } else {
+    await ctx.reply(
+      "Если хотите, могу сразу передать эту заявку менеджеру."
+    );
+  }
   await ctx.reply(REPLIES.askQuestions, mainKeyboard());
 }
 
@@ -510,42 +569,54 @@ bot.command("manager", async (ctx) => {
 bot.on("text", async (ctx) => {
   const text = (ctx.message.text || "").trim();
   const lower = text.toLowerCase();
+  const command = lower
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
   const session = getSession(ctx.from.id);
   clearReminder(session);
 
-  if (lower === "фото дома") {
+  if (command === "фото дома") {
     await sendPhotoIfAny(ctx);
     scheduleReminder(ctx, session);
     return;
   }
 
-  if (lower === "контакты менеджера") {
+  if (command === "контакты менеджера") {
     await ctx.reply(`Менеджер: ${MANAGER_PHONE}\nTelegram: https://t.me/${MANAGER_TG}`);
     scheduleReminder(ctx, session);
     return;
   }
 
-  if (lower === "указать даты") {
+  if (command === "указать даты") {
     await ctx.reply(REPLIES.askDates, mainKeyboard());
     scheduleReminder(ctx, session);
     return;
   }
 
-  if (lower === "количество гостей") {
+  if (command === "количество гостей") {
     await ctx.reply(REPLIES.askGuests, mainKeyboard());
     scheduleReminder(ctx, session);
     return;
   }
 
-  if (lower === "забронировать") {
+  if (command === "забронировать") {
     await offerBookingActions(ctx, session);
     scheduleReminder(ctx, session);
     return;
   }
 
-  if (lower === "открыть ссылку брони") {
+  if (command === "открыть ссылку брони") {
     if (!hasBookingCore(session)) {
       await ctx.reply("Нужны даты и количество гостей, чтобы открыть ссылку с уже заполненными данными.", mainKeyboard());
+      scheduleReminder(ctx, session);
+      return;
+    }
+    if (!canUsePublicBookingLink()) {
+      await ctx.reply(
+        "Ссылка на бронь пока локальная и доступна только у вас на компьютере. Могу сразу передать заявку менеджеру.",
+        Markup.keyboard([["Передать менеджеру"], ["Отмена"]]).resize()
+      );
       scheduleReminder(ctx, session);
       return;
     }
@@ -563,15 +634,26 @@ bot.on("text", async (ctx) => {
     return;
   }
 
-  if (lower === "передать менеджеру") {
+  if (
+    command === "передать менеджеру" ||
+    command === "передай менеджеру" ||
+    command === "передай" ||
+    command.includes("передать менеджеру") ||
+    command.includes("передай менеджеру")
+  ) {
     if (!hasBookingCore(session)) {
       await ctx.reply("Передам менеджеру. Подскажите даты и количество гостей, чтобы заявка была полной.", mainKeyboard());
       scheduleReminder(ctx, session);
       return;
     }
     session.awaitingContact = true;
+    const summary =
+      `Передаю заявку менеджеру:\n` +
+      `Даты: ${session.checkin} - ${session.checkout}\n` +
+      `Гостей: ${session.guests}\n` +
+      `Нажмите кнопку «Отправить контакт».`;
     await ctx.reply(
-      REPLIES.askContact,
+      summary,
       Markup.keyboard([
         [Markup.button.contactRequest("Отправить контакт")],
         ["Отмена"]
@@ -591,7 +673,7 @@ bot.on("text", async (ctx) => {
     return;
   }
 
-  if (lower === "отмена") {
+  if (command === "отмена") {
     session.awaitingContact = false;
     await ctx.reply("Хорошо, остаюсь на связи.", mainKeyboard());
     scheduleReminder(ctx, session);
@@ -670,11 +752,15 @@ bot.on("contact", async (ctx) => {
   const session = getSession(ctx.from.id);
   clearReminder(session);
   const phone = ctx.message.contact.phone_number;
+  const delivered = await sendManagerLeadFromBot(ctx, session, phone);
   const details = hasBookingCore(session)
     ? `\nЗаявка: ${session.checkin} - ${session.checkout}, гостей: ${session.guests}.`
     : "";
+  const deliveryHint = delivered
+    ? " Заявка отправлена менеджеру в Telegram."
+    : " Не удалось отправить заявку менеджеру автоматически, попробуйте позже.";
   await ctx.reply(
-    `Спасибо. Передала менеджеру ваш контакт: ${phone}.${details} Менеджер свяжется с вами в ближайшее время.`,
+    `Спасибо. Передала менеджеру ваш контакт: ${phone}.${details}${deliveryHint}`,
     mainKeyboard()
   );
   session.awaitingContact = false;
@@ -683,6 +769,15 @@ bot.on("contact", async (ctx) => {
 
 async function startBot() {
   await initDb();
+  bot.catch(async (err, ctx) => {
+    // eslint-disable-next-line no-console
+    console.error("Bot handler error:", err);
+    try {
+      await ctx.reply("Поймала технический сбой. Давайте продолжим: напишите даты и количество гостей.");
+    } catch {
+      // ignore nested failures
+    }
+  });
   await bot.launch();
   // eslint-disable-next-line no-console
   console.log("Telegram bot started");
